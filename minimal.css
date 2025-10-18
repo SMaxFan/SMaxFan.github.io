@@ -1,15 +1,15 @@
 /* Sets a legible font and a comfortable width for reading */
 body {
-    font-family: Arial, serif; /* A classic, simple font */
-    line-height: 1.6; /* Increases space between lines for readability */
+    font-family: Helvetica, Arial, sans-serif;
     max-width: 700px; /* Keeps the content from stretching too wide on large screens */
-    margin: 40px auto; /* Centers the content block on the page with space above/below */
+    margin: 40px auto; /* Centers the content block on the page with space above/below
     padding: 0 20px; /* Adds a bit of padding on the sides for smaller screens */
     color: #333; /* Dark gray text for better contrast than pure black */
 }
 
 /* Styles for Headings */
 h1, h2 {
+	font-family: Helvetica, Arial, sans-serif;
     color: #111; /* Nearly black for strong headings */
     border-bottom: 1px solid #ddd; /* A very subtle separator line */
     padding-bottom: 5px;
