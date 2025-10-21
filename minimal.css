@@ -4,7 +4,7 @@ body {
     max-width: 700px; /* Keeps the content from stretching too wide on large screens */
     margin: 40px auto; /* Centers the content block on the page with space above/below */
     padding: 0 20px; /* Adds a bit of padding on the sides for smaller screens */
-    color: #333; /* Dark gray text for better contrast than pure black */
+    color: #000; /* Dark gray text for better contrast than pure black */
 }
 
 /* Styles for Headings */
