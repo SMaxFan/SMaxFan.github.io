@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lion Hunting Dynamics Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom slider styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: #fbbf24;
+            cursor: pointer;
+            margin-top: -6px; 
+            border: 2px solid #1f2937;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.875rem; margin-bottom: 0.25rem; }
+        .value-display { font-family: monospace; color: #fbbf24; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4">
+
+    <header class="max-w-7xl mx-auto mb-6 text-center pt-4">
+        <h1 class="text-4xl font-bold text-yellow-500 mb-2">Lion Hunting Dynamics</h1>
+        <p class="text-gray-400">Evolutionary Game Theory & Eco-Evolutionary Feedback</p>
+    </header>
+
+    <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- LEFT COLUMN: STATIC MODEL -->
+        <section class="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 flex flex-col">
+            <div class="mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-2xl font-semibold text-green-400 flex items-center">
+                    <span class="mr-2">1. </span> Static Stag Hunt
+                </h2>
+                <p class="text-sm text-gray-400 mt-1">Replicator dynamics with constant prey value.</p>
+            </div>
+
+            <!-- Plot Area -->
+            <div class="space-y-4 mb-6 flex-grow">
+                <div id="staticPhasePlot" class="w-full h-64 bg-gray-900 rounded-lg border border-gray-700"></div>
+                <div id="staticTimePlot" class="w-full h-64 bg-gray-900 rounded-lg border border-gray-700"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="bg-gray-700/50 rounded-lg p-4 space-y-5 border border-gray-600">
+                <!-- Slider V -->
+                <div>
+                    <div class="slider-label"><label>Prey Value (V)</label><span id="val_V_disp" class="value-display">10.0</span></div>
+                    <input type="range" id="slider_V" min="1" max="20" step="0.5" value="10" class="w-full">
+                </div>
+                <!-- Slider c -->
+                <div>
+                    <div class="slider-label"><label>Hunting Cost (c)</label><span id="val_c_disp" class="value-display">2.0</span></div>
+                    <input type="range" id="slider_c" min="0.1" max="5" step="0.1" value="2" class="w-full">
+                </div>
+                <!-- Slider p -->
+                <div>
+                    <div class="slider-label"><label>Solo Success Prob (p)</label><span id="val_p_disp" class="value-display">0.3</span></div>
+                    <input type="range" id="slider_p" min="0" max="1" step="0.05" value="0.3" class="w-full">
+                </div>
+            </div>
+        </section>
+
+
+        <!-- RIGHT COLUMN: ECO-EVO MODEL -->
+        <section class="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 flex flex-col">
+            <div class="mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-2xl font-semibold text-blue-400 flex items-center">
+                    <span class="mr-2">2. </span> Eco-Evo Feedback
+                </h2>
+                <p class="text-sm text-gray-400 mt-1">Coupled ODEs showing Hopf Bifurcation (Limit Cycles).</p>
+            </div>
+
+            <!-- Plot Area -->
+            <div class="space-y-4 mb-6 flex-grow">
+                <div id="ecoPhasePlot" class="w-full h-64 bg-gray-900 rounded-lg border border-gray-700"></div>
+                <div id="ecoTimePlot" class="w-full h-64 bg-gray-900 rounded-lg border border-gray-700"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="bg-gray-700/50 rounded-lg p-4 grid grid-cols-1 gap-4 border border-gray-600">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Slider Alpha -->
+                    <div class="col-span-2">
+                        <div class="slider-label"><label>Max Value (α)</label><span id="val_alpha_disp" class="value-display">12.0</span></div>
+                        <input type="range" id="slider_alpha" min="5" max="25" step="0.5" value="12" class="w-full">
+                    </div>
+                    <!-- Slider c dyn -->
+                    <div>
+                        <div class="slider-label"><label>Cost (c)</label><span id="val_cdyn_disp" class="value-display">2.0</span></div>
+                        <input type="range" id="slider_cdyn" min="0.1" max="5" step="0.1" value="2" class="w-full">
+                    </div>
+                    <!-- Slider p dyn -->
+                    <div>
+                        <div class="slider-label"><label>Solo (p)</label><span id="val_pdyn_disp" class="value-display">0.1</span></div>
+                        <input type="range" id="slider_pdyn" min="0" max="1" step="0.05" value="0.1" class="w-full">
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-600 pt-2 grid grid-cols-2 gap-4">
+                    <!-- Slider r -->
+                    <div>
+                        <div class="slider-label"><label>Prey Growth (r)</label><span id="val_r_disp" class="value-display">0.5</span></div>
+                        <input type="range" id="slider_r" min="0.1" max="2" step="0.1" value="0.5" class="w-full">
+                    </div>
+                    <!-- Slider beta -->
+                    <div>
+                        <div class="slider-label"><label>Predation (β)</label><span id="val_beta_disp" class="value-display">0.8</span></div>
+                        <input type="range" id="slider_beta" min="0.1" max="2" step="0.1" value="0.8" class="w-full">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="max-w-7xl mx-auto mt-8 text-center text-gray-500 text-sm pb-8">
+        <p>Running Runge-Kutta 4 (RK4) Solver in browser.</p>
+    </footer>
+
+<script>
+// ==========================================
+//  MATH ENGINE (Ported from Python)
+// ==========================================
+
+/**
+ * Runge-Kutta 4th Order Solver
+ * @param {Function} derivs - The function returning [dx/dt, dn/dt...]
+ * @param {Array} y0 - Initial state vector
+ * @param {Number} t0 - Start time
+ * @param {Number} dt - Time step
+ * @param {Number} steps - Number of steps to solve
+ * @param {Object} params - Model parameters
+ */
+function rk4(derivs, y0, t0, dt, steps, params) {
+    let t = t0;
+    let y = [...y0];
+    const history_t = [t];
+    const history_y = [y];
+
+    for (let i = 0; i < steps; i++) {
+        const k1 = derivs(t, y, params);
+        
+        const y_k1 = y.map((val, j) => val + 0.5 * dt * k1[j]);
+        const k2 = derivs(t + 0.5 * dt, y_k1, params);
+        
+        const y_k2 = y.map((val, j) => val + 0.5 * dt * k2[j]);
+        const k3 = derivs(t + 0.5 * dt, y_k2, params);
+        
+        const y_k3 = y.map((val, j) => val + dt * k3[j]);
+        const k4 = derivs(t + dt, y_k3, params);
+
+        y = y.map((val, j) => val + (dt / 6) * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]));
+        t += dt;
+
+        history_t.push(t);
+        history_y.push(y);
+    }
+    return { t: history_t, y: history_y };
+}
+
+/**
+ * 1. Static Model Derivative: dx/dt
+ * Equation: dx/dt = x(1-x) * [ V/2 * x(1-2p) + pV/2 - c ]
+ */
+function staticDeriv(t, y, p) {
+    const x = y[0];
+    const V = p.V;
+    const c = p.c;
+    const prob = p.p;
+    
+    // Derived from: x * (f_C - f_bar)
+    const diff = (V/2 * x * (1 - 2*prob)) + (prob * V / 2) - c;
+    return [ x * (1 - x) * diff ];
+}
+
+/**
+ * 2. Eco-Evo Model Derivatives: [dx/dt, dn/dt]
+ * Exhibits Hopf Bifurcation
+ */
+function ecoEvoDeriv(t, y, p) {
+    let x = y[0];
+    let n = y[1];
+    
+    // Clamp inputs to avoid numerical explosions outside 0-1
+    x = Math.max(0, Math.min(1, x));
+    n = Math.max(0, n); // n can theoretically go > 1 but logistic growth pulls it back
+    
+    const alpha = p.alpha;
+    const c = p.c;
+    const prob = p.p;
+    const r = p.r;
+    const beta = p.beta;
+
+    // --- Evolution Equation (Lion Strategy) ---
+    // Value of kill depends on prey density: V(n) = alpha * n
+    const Vn = alpha * n;
+    // Fitness gradient
+    const bracket = (Vn / 2 * (1 - 2*prob)) * x + (prob * Vn / 2) - c;
+    const dxdt = x * (1 - x) * bracket;
+
+    // --- Ecology Equation (Prey Density) ---
+    // Logistic growth - Predation
+    // Predation rate M(x) = beta * x (more cooperators = better hunters)
+    const Mx = beta * x;
+    const dndt = r * n * (1 - n) - Mx * n;
+
+    return [dxdt, dndt];
+}
+
+// ==========================================
+//  UI & VISUALIZATION
+// ==========================================
+
+const colors = {
+    bg: '#111827',
+    grid: '#374151',
+    text: '#9CA3AF',
+    green: '#10B981',
+    red: '#EF4444',
+    blue: '#3B82F6',
+    yellow: '#F59E0B',
+    white: '#F3F4F6'
+};
+
+const commonLayout = {
+    plot_bgcolor: "rgba(0,0,0,0)",
+    paper_bgcolor: "rgba(0,0,0,0)",
+    font: { color: colors.text, family: 'Inter' },
+    margin: { t: 30, r: 10, b: 40, l: 50 },
+    xaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid, linecolor: colors.grid },
+    yaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid, linecolor: colors.grid },
+    showlegend: false
+};
+
+// --- Update Function for Static Model ---
+function updateStatic() {
+    const V = parseFloat(document.getElementById('slider_V').value);
+    const c = parseFloat(document.getElementById('slider_c').value);
+    const p = parseFloat(document.getElementById('slider_p').value);
+
+    document.getElementById('val_V_disp').innerText = V.toFixed(1);
+    document.getElementById('val_c_disp').innerText = c.toFixed(1);
+    document.getElementById('val_p_disp').innerText = p.toFixed(2);
+
+    // 1. Phase Portrait Data
+    const x_vals = [];
+    const dxdt_vals = [];
+    for(let i=0; i<=100; i++) {
+        let x = i/100;
+        let d = staticDeriv(0, [x], {V,c,p})[0];
+        x_vals.push(x);
+        dxdt_vals.push(d);
+    }
+
+    // Calculate Internal Equilibrium
+    // x* = (2c - pV) / (V(1-2p))
+    let eq = -1;
+    let denom = V * (1 - 2*p);
+    if(Math.abs(denom) > 0.0001) {
+        eq = (2*c - p*V) / denom;
+    }
+    
+    // 2. Time Series Data
+    const initial_conditions = [0.1, 0.3, 0.5, 0.7, 0.9];
+    const time_traces = [];
+    
+    initial_conditions.forEach(x0 => {
+        const res = rk4(staticDeriv, [x0], 0, 0.1, 200, {V,c,p});
+        let final = res.y[res.y.length-1][0];
+        let col = (final > 0.5) ? colors.green : colors.red;
+        
+        time_traces.push({
+            x: res.t,
+            y: res.y.map(v => v[0]),
+            type: 'scatter',
+            mode: 'lines',
+            line: { width: 1.5, color: col },
+            opacity: 0.7,
+            hoverinfo: 'none'
+        });
+    });
+
+    // Plot 1: Phase Portrait
+    const phaseTrace = {
+        x: x_vals, y: dxdt_vals,
+        type: 'scatter', mode: 'lines',
+        line: { color: colors.yellow, width: 3 },
+        name: 'dx/dt'
+    };
+    
+    const unstableTrace = { x: [], y: [], mode: 'markers', marker: { color: colors.red, size: 10, symbol: 'x' }, name: 'Unstable' };
+    const stableTrace = { x: [0,1], y: [0,0], mode: 'markers', marker: { color: colors.green, size: 10 }, name: 'Stable' };
+
+    if(eq > 0 && eq < 1) {
+        unstableTrace.x.push(eq); unstableTrace.y.push(0);
+    }
+
+    const layoutPhase = JSON.parse(JSON.stringify(commonLayout));
+    layoutPhase.title = "Static Phase Portrait";
+    layoutPhase.xaxis.title = "Frequency of Cooperators (x)";
+    layoutPhase.yaxis.title = "Rate of Change (dx/dt)";
+    layoutPhase.annotations = [{
+        x: 0.5, y: 0, xref: 'paper', yref: 'y', text: 'Equilibrium Line', showarrow: false, font: {size: 10, color: '#666'}
+    }];
+
+    Plotly.react('staticPhasePlot', [phaseTrace, stableTrace, unstableTrace], layoutPhase, {displayModeBar: false});
+
+    // Plot 2: Time Series
+    if(eq > 0 && eq < 1) {
+        time_traces.push({
+            x: [0, 20], y: [eq, eq], mode: 'lines', line: { color: colors.text, dash: 'dot', width: 1 }, name: 'Boundary'
+        });
+    }
+    
+    const layoutTime = JSON.parse(JSON.stringify(commonLayout));
+    layoutTime.title = "Static Time Evolution";
+    layoutTime.xaxis.title = "Time";
+    layoutTime.yaxis.title = "Cooperators (x)";
+    layoutTime.yaxis.range = [-0.05, 1.05];
+
+    Plotly.react('staticTimePlot', time_traces, layoutTime, {displayModeBar: false});
+}
+
+// --- Update Function for Eco-Evo Model ---
+function updateEco() {
+    const alpha = parseFloat(document.getElementById('slider_alpha').value);
+    const c = parseFloat(document.getElementById('slider_cdyn').value);
+    const p = parseFloat(document.getElementById('slider_pdyn').value);
+    const r = parseFloat(document.getElementById('slider_r').value);
+    const beta = parseFloat(document.getElementById('slider_beta').value);
+
+    document.getElementById('val_alpha_disp').innerText = alpha.toFixed(1);
+    document.getElementById('val_cdyn_disp').innerText = c.toFixed(1);
+    document.getElementById('val_pdyn_disp').innerText = p.toFixed(2);
+    document.getElementById('val_r_disp').innerText = r.toFixed(1);
+    document.getElementById('val_beta_disp').innerText = beta.toFixed(1);
+
+    // Solve ODEs
+    // Longer duration to show cycles
+    const res = rk4(ecoEvoDeriv, [0.1, 0.8], 0, 0.2, 1000, {alpha, c, p, r, beta});
+    
+    const x_data = res.y.map(v => v[0]);
+    const n_data = res.y.map(v => v[1]);
+    const t_data = res.t;
+
+    // Plot 3: Phase Plane
+    const phaseTrace = {
+        x: x_data, y: n_data,
+        type: 'scatter', mode: 'lines',
+        line: { color: colors.blue, width: 2 },
+        name: 'Trajectory'
+    };
+    
+    const startPt = {
+        x: [x_data[0]], y: [n_data[0]],
+        mode: 'markers', marker: { color: colors.green, size: 8 }, name: 'Start'
+    };
+    
+    const endPt = {
+        x: [x_data[x_data.length-1]], y: [n_data[n_data.length-1]],
+        mode: 'markers', marker: { color: colors.red, size: 8, symbol: 'square' }, name: 'End'
+    };
+
+    const layoutPhase = JSON.parse(JSON.stringify(commonLayout));
+    layoutPhase.title = "Phase Plane (Limit Cycles)";
+    layoutPhase.xaxis.title = "Lions (Cooperators)";
+    layoutPhase.yaxis.title = "Prey Density";
+    layoutPhase.xaxis.range = [-0.05, 1.05];
+    layoutPhase.yaxis.range = [-0.05, 1.05];
+
+    Plotly.react('ecoPhasePlot', [phaseTrace, startPt, endPt], layoutPhase, {displayModeBar: false});
+
+    // Plot 4: Time Series
+    const xTrace = {
+        x: t_data, y: x_data,
+        name: 'Lions (x)', type: 'scatter', mode: 'lines',
+        line: { color: colors.green, width: 2 }
+    };
+    
+    const nTrace = {
+        x: t_data, y: n_data,
+        name: 'Prey (n)', type: 'scatter', mode: 'lines',
+        line: { color: colors.white, dash: 'dash', width: 2 }
+    };
+
+    const layoutTime = JSON.parse(JSON.stringify(commonLayout));
+    layoutTime.title = "Population Dynamics";
+    layoutTime.xaxis.title = "Time";
+    layoutTime.showlegend = true;
+    layoutTime.legend = { x: 1, y: 1, font: {color: colors.text}, bgcolor: 'rgba(0,0,0,0)' };
+
+    Plotly.react('ecoTimePlot', [xTrace, nTrace], layoutTime, {displayModeBar: false});
+}
+
+// Attach Listeners
+['slider_V', 'slider_c', 'slider_p'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateStatic);
+});
+
+['slider_alpha', 'slider_cdyn', 'slider_pdyn', 'slider_r', 'slider_beta'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateEco);
+});
+
+// Initial Render
+updateStatic();
+updateEco();
+
+</script>
+</body>
+</html>
