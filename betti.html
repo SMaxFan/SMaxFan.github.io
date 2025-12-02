@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Betti Number Visualizer: Vietoris-Rips Complex</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        
+        canvas {
+            cursor: crosshair;
+            touch-action: none;
+        }
+        
+        .number-card {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col md:flex-row">
+
+    <!-- Sidebar / Controls -->
+    <div class="w-full md:w-80 bg-slate-900 border-r border-slate-700 flex flex-col p-6 z-10 shadow-xl overflow-y-auto">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-white mb-2"><i class="fa-solid fa-shapes text-indigo-400 mr-2"></i>Betti Viz</h1>
+            <p class="text-xs text-slate-400">Vietoris-Rips Complex Explorer</p>
+        </div>
+
+        <!-- Metrics -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 number-card">
+                <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">β₀ (Components)</div>
+                <div class="text-3xl font-bold text-emerald-400" id="b0-display">0</div>
+            </div>
+            <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 number-card">
+                <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">β₁ (Holes)</div>
+                <div class="text-3xl font-bold text-pink-400" id="b1-display">0</div>
+            </div>
+        </div>
+
+        <!-- Stats details -->
+        <div class="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50 mb-6 text-xs text-slate-400 font-mono space-y-1">
+            <div class="flex justify-between"><span>Vertices (V):</span> <span id="v-count" class="text-white">0</span></div>
+            <div class="flex justify-between"><span>Edges (E):</span> <span id="e-count" class="text-white">0</span></div>
+            <div class="flex justify-between"><span>Faces (F):</span> <span id="f-count" class="text-white">0</span></div>
+            <div class="border-t border-slate-700 my-1"></div>
+            <div class="flex justify-between"><span>Euler (χ):</span> <span id="euler-count" class="text-indigo-300">0</span></div>
+            <div class="text-[10px] text-slate-500 text-right mt-1">β₁ = β₀ - (V - E + F)</div>
+        </div>
+
+        <!-- Controls -->
+        <div class="space-y-6 flex-grow">
+            <div>
+                <label class="flex justify-between text-sm font-semibold mb-2">
+                    <span>Connectivity Radius (ε)</span>
+                    <span id="radius-val" class="text-indigo-400">60</span>
+                </label>
+                <input type="range" id="radius-slider" min="10" max="200" value="60" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                <p class="text-[10px] text-slate-500 mt-2">Connecting points closer than distance ε.</p>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" id="show-radius" class="w-4 h-4 rounded border-slate-600 text-indigo-500 focus:ring-indigo-500 bg-slate-700">
+                <label for="show-radius" class="text-sm cursor-pointer select-none">Show Interaction Zones</label>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <input type="checkbox" id="fill-faces" checked class="w-4 h-4 rounded border-slate-600 text-indigo-500 focus:ring-indigo-500 bg-slate-700">
+                <label for="fill-faces" class="text-sm cursor-pointer select-none">Fill Triangles (Kill Holes)</label>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="mt-8 space-y-2">
+            <button onclick="clearCanvas()" class="w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold rounded-lg transition-colors border border-slate-600">
+                Clear Canvas
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="presetCircle()" class="py-2 px-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors">
+                    Make Circle
+                </button>
+                <button onclick="presetRandom()" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold rounded-lg transition-colors border border-slate-600">
+                    Random
+                </button>
+            </div>
+        </div>
+        
+        <div class="mt-6 text-[10px] text-slate-500 leading-relaxed">
+            <p><strong>Instructions:</strong> Click to add points. Drag points to move them. Right-click points to remove.</p>
+        </div>
+    </div>
+
+    <!-- Main Canvas Area -->
+    <div class="flex-grow relative bg-slate-950 overflow-hidden" id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+        
+        <div class="absolute top-4 left-4 pointer-events-none">
+            <h2 class="text-white/20 text-4xl font-black uppercase tracking-widest select-none">Topology</h2>
+        </div>
+    </div>
+
+<script>
+    /**
+     * Betti Visualizer Logic
+     * * Uses a Vietoris-Rips construction approach.
+     * 1. 0-Simplices: User placed points.
+     * 2. 1-Simplices (Edges): Pairs of points within distance 'epsilon'.
+     * 3. 2-Simplices (Faces): Triples of points pairwise connected.
+     * * Calculation:
+     * Beta_0 = Connected Components (via Union-Find)
+     * Beta_1 = Beta_0 - Euler_Characteristic (where Euler = V - E + F)
+     * * Assumption: We are working in a 2D plane, so we ignore Beta_2 (voids).
+     */
+
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+
+    // State
+    let points = []; // Array of {x, y}
+    let radius = 60; // Interaction threshold (epsilon)
+    let showRadius = false;
+    let fillFaces = true;
+    
+    // Interaction State
+    let isDragging = false;
+    let dragIndex = -1;
+
+    // DOM Elements
+    const b0Display = document.getElementById('b0-display');
+    const b1Display = document.getElementById('b1-display');
+    const vCountDisplay = document.getElementById('v-count');
+    const eCountDisplay = document.getElementById('e-count');
+    const fCountDisplay = document.getElementById('f-count');
+    const eulerDisplay = document.getElementById('euler-count');
+    const radiusSlider = document.getElementById('radius-slider');
+    const radiusVal = document.getElementById('radius-val');
+    const radiusCheck = document.getElementById('show-radius');
+    const fillCheck = document.getElementById('fill-faces');
+
+    // --- Union Find Data Structure for B0 ---
+    class UnionFind {
+        constructor(size) {
+            this.parent = new Array(size).fill(0).map((_, i) => i);
+        }
+
+        find(i) {
+            if (this.parent[i] === i) return i;
+            this.parent[i] = this.find(this.parent[i]); // Path compression
+            return this.parent[i];
+        }
+
+        union(i, j) {
+            const rootI = this.find(i);
+            const rootJ = this.find(j);
+            if (rootI !== rootJ) {
+                this.parent[rootI] = rootJ;
+                return true; // Merged
+            }
+            return false; // Already same set
+        }
+    }
+
+    // --- Initialization & Events ---
+
+    function resizeCanvas() {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        draw();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Initial Setup
+    resizeCanvas();
+    presetCircle(); // Start with something interesting
+
+    // Controls
+    radiusSlider.addEventListener('input', (e) => {
+        radius = parseInt(e.target.value);
+        radiusVal.innerText = radius;
+        draw();
+    });
+
+    radiusCheck.addEventListener('change', (e) => {
+        showRadius = e.target.checked;
+        draw();
+    });
+    
+    fillCheck.addEventListener('change', (e) => {
+        fillFaces = e.target.checked;
+        draw();
+    });
+
+    // Mouse Interactions
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Check if clicking existing point
+        const clickedIndex = points.findIndex(p => Math.hypot(p.x - x, p.y - y) < 15);
+
+        if (e.button === 2) { // Right click
+            if (clickedIndex !== -1) {
+                points.splice(clickedIndex, 1);
+                draw();
+            }
+        } else { // Left click
+            if (clickedIndex !== -1) {
+                isDragging = true;
+                dragIndex = clickedIndex;
+            } else {
+                points.push({x, y});
+                draw();
+            }
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (isDragging && dragIndex !== -1) {
+            const rect = canvas.getBoundingClientRect();
+            points[dragIndex].x = e.clientX - rect.left;
+            points[dragIndex].y = e.clientY - rect.top;
+            draw();
+        } else {
+            // Hover effect cursor
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const hovered = points.some(p => Math.hypot(p.x - x, p.y - y) < 15);
+            canvas.style.cursor = hovered ? 'move' : 'crosshair';
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+        dragIndex = -1;
+    });
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    // --- Core Logic ---
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Compute Connectivity (Edges)
+        // Store adjacency list for faster triangle finding
+        const adj = Array.from({ length: points.length }, () => []);
+        const edges = [];
+
+        for (let i = 0; i < points.length; i++) {
+            for (let j = i + 1; j < points.length; j++) {
+                const dist = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
+                if (dist <= radius) {
+                    adj[i].push(j);
+                    adj[j].push(i); // Undirected
+                    edges.push([i, j]);
+                }
+            }
+        }
+
+        // 2. Compute Faces (Triangles)
+        // A face exists if 3 points are mutually connected (Clique of size 3)
+        // Since we have adj list, we can optimize slightly over O(N^3)
+        const faces = [];
+        if (fillFaces) {
+            for (let i = 0; i < points.length; i++) {
+                // Check neighbors of i
+                const neighbors = adj[i];
+                for (let j = 0; j < neighbors.length; j++) {
+                    let u = neighbors[j];
+                    if (u <= i) continue; // avoid duplicates, ensure i < u
+                    
+                    for (let k = j + 1; k < neighbors.length; k++) {
+                        let v = neighbors[k];
+                        if (v <= u) continue; // ensure u < v
+                        
+                        // Check if u and v are connected
+                        if (adj[u].includes(v)) {
+                            faces.push([i, u, v]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Compute Betti Numbers
+        // B0: Connected Components
+        const uf = new UnionFind(points.length);
+        edges.forEach(e => uf.union(e[0], e[1]));
+        
+        // Count distinct sets
+        let distinctRoots = new Set();
+        for(let i=0; i<points.length; i++) {
+            distinctRoots.add(uf.find(i));
+        }
+        const b0 = distinctRoots.size;
+
+        // B1: Holes
+        // Euler Characteristic Chi = V - E + F
+        // Chi = b0 - b1 + b2...
+        // Assuming b2 = 0 (Planar/2D projection logic), b1 = b0 - Chi
+        const V = points.length;
+        const E = edges.length;
+        const F = faces.length;
+        const chi = V - E + F;
+        
+        // Ensure b1 doesn't drop below 0 (can happen in complex non-planar projections visually, but here we clamp for 2D sanity)
+        const b1 = Math.max(0, b0 - chi);
+
+        // --- Rendering ---
+
+        // Draw Interaction Zones (Radius)
+        if (showRadius) {
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.1)';
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius / 2, 0, Math.PI * 2); // Radius is diameter in distance logic usually, but here radius is max edge length. 
+                // Wait, if dist(a,b) < radius, they connect.
+                // So the visual "bubble" around a point should be radius/2 if we think of balls touching.
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.2)';
+                ctx.stroke();
+            });
+        }
+
+        // Draw Faces
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.3)'; // Pinkish for fills
+        ctx.strokeStyle = 'rgba(236, 72, 153, 0.5)';
+        faces.forEach(f => {
+            const p1 = points[f[0]];
+            const p2 = points[f[1]];
+            const p3 = points[f[2]];
+            
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.closePath();
+            ctx.fill();
+            // Optional: stroke triangles slightly
+            // ctx.stroke();
+        });
+
+        // Draw Edges
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#94a3b8'; // Slate 400
+        ctx.beginPath();
+        edges.forEach(e => {
+            const p1 = points[e[0]];
+            const p2 = points[e[1]];
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+        });
+        ctx.stroke();
+
+        // Draw Points
+        points.forEach((p, idx) => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+            
+            // Highlight dragged point
+            if (idx === dragIndex) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#fff';
+                ctx.shadowBlur = 10;
+            } else {
+                ctx.fillStyle = '#6366f1'; // Indigo 500
+                ctx.shadowBlur = 0;
+            }
+            
+            ctx.fill();
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+
+        // Update UI
+        b0Display.innerText = b0;
+        b1Display.innerText = b1;
+        vCountDisplay.innerText = V;
+        eCountDisplay.innerText = E;
+        fCountDisplay.innerText = F;
+        eulerDisplay.innerText = chi;
+    }
+
+    // --- Presets ---
+
+    function clearCanvas() {
+        points = [];
+        draw();
+    }
+
+    function presetCircle() {
+        points = [];
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const r = 100;
+        const count = 10; // Enough to form a loop with radius=60
+        
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2;
+            points.push({
+                x: cx + Math.cos(angle) * r,
+                y: cy + Math.sin(angle) * r
+            });
+        }
+        draw();
+    }
+
+    function presetRandom() {
+        points = [];
+        const w = canvas.width;
+        const h = canvas.height;
+        for (let i = 0; i < 20; i++) {
+            points.push({
+                x: w * 0.1 + Math.random() * w * 0.8,
+                y: h * 0.1 + Math.random() * h * 0.8
+            });
+        }
+        draw();
+    }
+
+</script>
+</body>
+</html>
